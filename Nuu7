@@ -1,483 +1,451 @@
---Nuu7 Hub - Desenvolvido por LiamX (Parte 1)
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 1)
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
 
--- Configurações Globais / Estados do Script
+-- Configurações Globais / Estados da UI e Funções
 _G.Nuu7Settings = {
-    Key = "0nuu7",
-    Active = false,
-    ESP = { Lines = false, Names = false, Distance = false, TeamCheck = true },
-    Hitbox = { Enabled = false, Size = 2 },
-    Movement = { WalkSpeed = 16, Enabled = false },
-    SilentAim = { Enabled = false, TargetPart = "Head" },
-    Aimbot = { Enabled = false, FOV = 100, Smoothness = 0.2 },
-    AutoShoot = false,
-    UI = { Open = true, DarkMode = true }
+    Active = true,
+    CurrentTab = "Info",
+    UI_Color = Color3.fromRGB(0, 162, 255),
+    UI_Size = 93,
+    IconFixed = false,
+    IconHidden = false,
+    -- Configs de las funciones
+    ESP_Activated = false,
+    Ally_ESP = false,
+    Color_Outline = Color3.fromRGB(0, 255, 255),
+    Color_Ally_Outline = Color3.fromRGB(0, 255, 0),
+    AutoShot = false,
+    ClickShot = false,
+    Punto_Deteccion = 14,
+    Activar_FOV = false,
+    Tamano_FOV = 200,
+    Hora_Juego = 14
 }
 
 local Settings = _G.Nuu7Settings
 
--- Criando Instância Principal da UI (Protegida)
+-- Criação da ScreenGui Principal protegida para Executors
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Nuu7Hub_Interface"
+ScreenGui.Name = "Nuu7Hub_FinalUI"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 999999
 pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then
+    ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
 
--- Limpeza de instâncias antigas se reexecutado
-for _, oldUi in pairs(CoreGui:GetChildren()) do
-    if oldUi.Name == "Nuu7Hub_Interface" and oldUi ~= ScreenGui then
-        oldUi:Destroy()
+-- 1. BOTÃO FLUTUANTE CUSTOMIZADO (IMAGEM 1)
+local FloatingButton = Instance.new("ImageButton")
+FloatingButton.Name = "Nuu7_FloatingIcon"
+FloatingButton.Size = UDim2.new(0, 55, 0, 55)
+FloatingButton.Position = UDim2.new(0.05, 0, 0.2, 0)
+FloatingButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+FloatingButton.BorderSizePixel = 0
+FloatingButton.Image = "rbxassetid://84138760086392" -- Red de conexiones roja
+FloatingButton.ZIndex = 10
+FloatingButton.Parent = ScreenGui
+
+local IconCorner = Instance.new("UICorner")
+IconCorner.CornerRadius = UDim.new(0, 12)
+IconCorner.Parent = FloatingButton
+
+-- Arrastrar el botón en Mobile
+local dragToggle, dragStart, startPos
+FloatingButton.InputBegan:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) and not Settings.IconFixed then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = FloatingButton.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragToggle = false end
+        end)
     end
-end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        FloatingButton.Position = UDim2.new(startPos.Width.Scale, startPos.Width.Offset + delta.X, startPos.Height.Scale, startPos.Height.Offset + delta.Y)
+    end
+end)
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 2)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 580, 0, 360)
+MainFrame.Position = UDim2.new(0.5, -290, 0.5, -180)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
 
--- Janela do Sistema de Chaves
-local KeyWindow = Instance.new("Frame")
-local KeyInput = Instance.new("TextBox")
-local KeySubmit = Instance.new("TextButton")
-local KeyTitle = Instance.new("TextLabel")
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
 
-KeyWindow.Name = "KeyWindow"
-KeyWindow.Size = UDim2.new(0, 320, 0, 180)
-KeyWindow.Position = UDim2.new(0.5, -160, 0.5, -90)
-KeyWindow.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
-KeyWindow.BorderSizePixel = 0
-KeyWindow.Parent = ScreenGui
-
-local KeyCorner = Instance.new("UICorner")
-KeyCorner.CornerRadius = UDim.new(0, 14)
-KeyCorner.Parent = KeyWindow
-
-KeyTitle.Size = UDim2.new(1, 0, 0, 40)
-KeyTitle.BackgroundTransparency = 1
-KeyTitle.Text = "Nuu7 Hub ─ Digite a Chave"
-KeyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-KeyTitle.Font = Enum.Font.SFMono
-KeyTitle.TextSize = 16
-KeyTitle.Parent = KeyWindow
-
-KeyInput.Size = UDim2.new(0, 260, 0, 40)
-KeyInput.Position = UDim2.new(0.5, -130, 0.4, 0)
-KeyInput.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
-KeyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-KeyInput.PlaceholderText = "Chave..."
-KeyInput.Text = ""
-KeyInput.Font = Enum.Font.SourceSans
-KeyInput.TextSize = 16
-KeyInput.Parent = KeyWindow
-local InputCorner = Instance.new("UICorner")
-InputCorner.CornerRadius = UDim.new(0, 8)
-InputCorner.Parent = KeyInput
-
-KeySubmit.Size = UDim2.new(0, 120, 0, 35)
-KeySubmit.Position = UDim2.new(0.5, -60, 0.75, 0)
-KeySubmit.BackgroundColor3 = Color3.fromRGB(10, 132, 255)
-KeySubmit.Text = "Verificar"
-KeySubmit.TextColor3 = Color3.fromRGB(255, 255, 255)
-KeySubmit.Font = Enum.Font.SourceSansBold
-KeySubmit.TextSize = 16
-KeySubmit.Parent = KeyWindow
-local ButtonCorner = Instance.new("UICorner")
-ButtonCorner.CornerRadius = UDim.new(0, 8)
-ButtonCorner.Parent = KeySubmit
--- Nuu7 Hub - Desenvolvido por LiamX (Parte 2)
-local MainWindow = Instance.new("Frame")
-local LeftPanel = Instance.new("Frame")
-local ContentPanel = Instance.new("Frame")
 local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 45)
+TopBar.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0, 200, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "𝙉𝙪𝙪7 𝙃𝙪𝙗 - [ DMVS ]"
+Title.TextColor3 = Color3.fromRGB(120, 80, 255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 20
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
+
+local Subtitle = Instance.new("TextLabel")
+Subtitle.Size = UDim2.new(0, 100, 0, 15)
+Subtitle.Position = UDim2.new(0, 15, 0.65, 0)
+Subtitle.BackgroundTransparency = 1
+Subtitle.Text = "By LiamX"
+Subtitle.TextColor3 = Color3.fromRGB(100, 100, 100)
+Subtitle.Font = Enum.Font.SourceSans
+Subtitle.TextSize = 11
+Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+Subtitle.Parent = TopBar
+
+local DeltaBadge = Instance.new("TextLabel")
+DeltaBadge.Size = UDim2.new(0, 70, 0, 22)
+DeltaBadge.Position = UDim2.new(1, -210, 0.25, 0)
+DeltaBadge.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+DeltaBadge.Text = ">_ Delta"
+DeltaBadge.TextColor3 = Color3.fromRGB(160, 160, 200)
+DeltaBadge.Font = Enum.Font.SourceSans
+DeltaBadge.TextSize = 12
+DeltaBadge.Parent = TopBar
+Instance.new("UICorner", DeltaBadge).CornerRadius = UDim.new(0, 5)
+
+local FPSBadge = Instance.new("TextLabel")
+FPSBadge.Size = UDim2.new(0, 70, 0, 22)
+FPSBadge.Position = UDim2.new(1, -130, 0.25, 0)
+FPSBadge.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+FPSBadge.Text = "⚡ 27 FPS"
+FPSBadge.TextColor3 = Color3.fromRGB(230, 190, 110)
+FPSBadge.Font = Enum.Font.SourceSans
+FPSBadge.TextSize = 12
+FPSBadge.Parent = TopBar
+Instance.new("UICorner", FPSBadge).CornerRadius = UDim.new(0, 5)
+
 local CloseBtn = Instance.new("TextButton")
-local MinimizeBtn = Instance.new("TextButton")
-local Signature = Instance.new("TextLabel")
-local FloatingCircle = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -40, 0.2, 0)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+CloseBtn.TextSize = 16
+CloseBtn.Parent = TopBar
 
-local function BuildMainUI()
-    MainWindow.Name = "MainWindow"
-    MainWindow.Size = UDim2.new(0, 550, 0, 380)
-    MainWindow.Position = UDim2.new(0.5, -275, 0.5, -190)
-    MainWindow.BackgroundColor3 = Color3.fromRGB(20, 20, 22)
-    MainWindow.BackgroundTransparency = 0.15 
-    MainWindow.BorderSizePixel = 0
-    MainWindow.Visible = false
-    MainWindow.Parent = ScreenGui
+-- Arrastrar Ventana
+local mainDragToggle, mainDragStart, mainStartPos
+TopBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        mainDragToggle = true
+        mainDragStart = input.Position
+        mainStartPos = MainFrame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then mainDragToggle = false end
+        end)
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if mainDragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - mainDragStart
+        MainFrame.Position = UDim2.new(mainStartPos.Width.Scale, mainStartPos.Width.Offset + delta.X, mainStartPos.Height.Scale, mainStartPos.Height.Offset + delta.Y)
+    end
+end)
 
-    local MainCorner = Instance.new("UICorner")
-    MainCorner.CornerRadius = UDim.new(0, 16)
-    MainCorner.Parent = MainWindow
+local LeftNav = Instance.new("Frame")
+LeftNav.Size = UDim2.new(0, 150, 1, -45)
+LeftNav.Position = UDim2.new(0, 0, 0, 45)
+LeftNav.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+LeftNav.BorderSizePixel = 0
+LeftNav.Parent = MainFrame
 
-    TopBar.Size = UDim2.new(1, 0, 0, 40)
-    TopBar.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
-    TopBar.BackgroundTransparency = 0.3
-    TopBar.BorderSizePixel = 0
-    TopBar.Parent = MainWindow
-    local TopCorner = Instance.new("UICorner")
-    TopCorner.CornerRadius = UDim.new(0, 16)
-    TopCorner.Parent = TopBar
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Size = UDim2.new(1, -150, 1, -45)
+ContentContainer.Position = UDim2.new(0, 150, 0, 45)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Parent = MainFrame
 
-    CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-    CloseBtn.Position = UDim2.new(1, -35, 0, 5)
-    CloseBtn.BackgroundTransparency = 1
-    CloseBtn.Text = "✕"
-    CloseBtn.TextColor3 = Color3.fromRGB(255, 69, 58)
-    CloseBtn.TextSize = 14
-    CloseBtn.Parent = TopBar
+local Tabs = {"Info", "RenyShot", "Movil", "ESP", "Shader", "Tools"}
+local TabButtons = {}
+local TabPages = {}
 
-    MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-    MinimizeBtn.Position = UDim2.new(1, -65, 0, 5)
-    MinimizeBtn.BackgroundTransparency = 1
-    MinimizeBtn.Text = "■"
-    MinimizeBtn.TextColor3 = Color3.fromRGB(255, 214, 10)
-    MinimizeBtn.TextSize = 14
-    MinimizeBtn.Parent = TopBar
+for i, tabName in ipairs(Tabs) do
+    local Page = Instance.new("ScrollingFrame")
+    Page.Size = UDim2.new(1, 0, 1, 0)
+    Page.BackgroundTransparency = 1
+    Page.CanvasSize = UDim2.new(0, 0, 0, 520)
+    Page.ScrollBarThickness = 2
+    Page.Visible = (tabName == "Info")
+    Page.Parent = ContentContainer
+    TabPages[tabName] = Page
 
-    LeftPanel.Size = UDim2.new(0, 140, 1, -40)
-    LeftPanel.Position = UDim2.new(0, 0, 0, 40)
-    LeftPanel.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
-    LeftPanel.BackgroundTransparency = 0.5
-    LeftPanel.BorderSizePixel = 0
-    LeftPanel.Parent = MainWindow
+    local Layout = Instance.new("UIListLayout")
+    Layout.Padding = UDim.new(0, 10)
+    Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    Layout.SortOrder = Enum.SortOrder.LayoutOrder
+    Layout.Parent = Page
 
-    ContentPanel.Size = UDim2.new(1, -140, 1, -40)
-    ContentPanel.Position = UDim2.new(0, 140, 0, 40)
-    ContentPanel.BackgroundTransparency = 1
-    ContentPanel.Parent = MainWindow
+    local Padding = Instance.new("UIPadding")
+    Padding.PaddingTop = UDim.new(0, 15)
+    Padding.Parent = Page
 
-    Signature.Size = UDim2.new(0, 100, 0, 20)
-    Signature.Position = UDim2.new(0, 10, 1, -25)
-    Signature.BackgroundTransparency = 1
-    Signature.Text = "By LiamX"
-    Signature.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Signature.Font = Enum.Font.SFMono
-    Signature.TextSize = 12
-    Signature.Parent = MainWindow
+    local TabBtn = Instance.new("TextButton")
+    TabBtn.Size = UDim2.new(0, 130, 0, 36)
+    TabBtn.Position = UDim2.new(0, 10, 0, (i - 1) * 42 + 10)
+    TabBtn.BackgroundColor3 = (tabName == "Info") and Color3.fromRGB(24, 24, 30) or Color3.fromRGB(18, 18, 22)
+    TabBtn.Text = "      " .. tabName
+    TabBtn.TextColor3 = (tabName == "Info") and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(150, 150, 150)
+    TabBtn.Font = Enum.Font.SourceSans
+    TabBtn.TextSize = 14
+    TabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    TabBtn.Parent = LeftNav
+    Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 6)
 
-    FloatingCircle.Name = "FloatingCircle"
-    FloatingCircle.Size = UDim2.new(0, 50, 0, 50)
-    FloatingCircle.Position = UDim2.new(0.05, 0, 0.1, 0)
-    FloatingCircle.BackgroundColor3 = Color3.fromRGB(28, 28, 30)
-    FloatingCircle.Text = "◉"
-    FloatingCircle.TextColor3 = Color3.fromRGB(10, 132, 255)
-    FloatingCircle.TextSize = 24
-    FloatingCircle.Visible = false
-    FloatingCircle.Parent = ScreenGui
-    local CircleCorner = Instance.new("UICorner")
-    CircleCorner.CornerRadius = UDim.new(1, 0)
-    CircleCorner.Parent = FloatingCircle
+    local Indicator = Instance.new("Frame")
+    Indicator.Size = UDim2.new(0, 3, 0, 20)
+    Indicator.Position = UDim2.new(0, 5, 0.5, -10)
+    Indicator.BackgroundColor3 = Color3.fromRGB(120, 80, 255)
+    Indicator.Visible = (tabName == "Info")
+    Indicator.Parent = TabBtn
 
-    task.spawn(function()
-        local counter = 0
-        while true do
-            counter = counter + 0.01
-            Signature.TextColor3 = Color3.fromHSV(counter % 1, 0.7, 1)
-            task.wait(0.03)
+    TabBtn.MouseButton1Click:Connect(function()
+        for t, page in pairs(TabPages) do page.Visible = (t == tabName) end
+        for _, btn in pairs(TabButtons) do
+            btn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+            btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+            btn.Indicator.Visible = false
         end
+        TabBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+        TabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Indicator.Visible = true
+    end)
+    TabButtons[tabName] = TabBtn
+    TabBtn.Name = "TabBtn_" .. tabName
+end
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 3)
+local function CreateCard(title, description, parent)
+    local Card = Instance.new("Frame")
+    Card.Size = UDim2.new(0, 400, 0, 65)
+    Card.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    Card.BorderSizePixel = 0
+    Card.Parent = parent
+    Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 8)
+
+    local TxtTitle = Instance.new("TextLabel")
+    TxtTitle.Size = UDim2.new(0, 250, 0, 20)
+    TxtTitle.Position = UDim2.new(0, 15, 0, 12)
+    TxtTitle.BackgroundTransparency = 1
+    TxtTitle.Text = title
+    TxtTitle.TextColor3 = Color3.fromRGB(230, 230, 235)
+    TxtTitle.Font = Enum.Font.SourceSansBold
+    TxtTitle.TextSize = 14
+    TxtTitle.TextXAlignment = Enum.TextXAlignment.Left
+    TxtTitle.Parent = Card
+
+    local TxtDesc = Instance.new("TextLabel")
+    TxtDesc.Size = UDim2.new(0, 250, 0, 15)
+    TxtDesc.Position = UDim2.new(0, 15, 0, 32)
+    TxtDesc.BackgroundTransparency = 1
+    TxtDesc.Text = description
+    TxtDesc.TextColor3 = Color3.fromRGB(110, 110, 115)
+    TxtDesc.Font = Enum.Font.SourceSans
+    TxtDesc.TextSize = 12
+    TxtDesc.TextXAlignment = Enum.TextXAlignment.Left
+    TxtDesc.Parent = Card
+    return Card
+end
+
+local function AddToggle(card, defaultState, callback)
+    local Toggle = Instance.new("TextButton")
+    Toggle.Size = UDim2.new(0, 42, 0, 22)
+    Toggle.Position = UDim2.new(1, -57, 0.5, -11)
+    Toggle.BackgroundColor3 = defaultState and Color3.fromRGB(120, 80, 255) or Color3.fromRGB(45, 45, 50)
+    Toggle.Text = ""
+    Toggle.Parent = card
+    Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
+
+    local Knob = Instance.new("Frame")
+    Knob.Size = UDim2.new(0, 16, 0, 16)
+    Knob.Position = defaultState and UDim2.new(1, -20, 0.5, -8) or UDim2.new(0, 4, 0.5, -8)
+    Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Knob.Parent = Toggle
+    Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+
+    local active = defaultState
+    Toggle.MouseButton1Click:Connect(function()
+        active = not active
+        TweenService:Create(Toggle, TweenInfo.new(0.15), {BackgroundColor3 = active and Color3.fromRGB(120, 80, 255) or Color3.fromRGB(45, 45, 50)}):Play()
+        TweenService:Create(Knob, TweenInfo.new(0.15), {Position = active and UDim2.new(1, -20, 0.5, -8) or UDim2.new(0, 4, 0.5, -8)}):Play()
+        callback(active)
     end)
 end
 
-local function MakeDraggable(frame)
-    local dragging, dragInput, dragStart, startPos
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
-        end
-    end)
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    RunService.RenderStepped:Connect(function()
-        if dragging and dragInput then
-            local delta = dragInput.Position - dragStart
-            frame.Position = UDim2.new(startPos.Width.Scale, startPos.Width.Offset + delta.X, startPos.Height.Scale, startPos.Height.Offset + delta.Y)
-        end
-    end)
-end
+local function AddSlider(card, min, max, defaultVal, callback)
+    card.Size = UDim2.new(0, 400, 0, 75)
+    local ValLabel = Instance.new("TextLabel")
+    ValLabel.Size = UDim2.new(0, 40, 0, 20)
+    ValLabel.Position = UDim2.new(1, -55, 0, 12)
+    ValLabel.BackgroundTransparency = 1
+    ValLabel.Text = tostring(defaultVal)
+    ValLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    ValLabel.Font = Enum.Font.SourceSans
+    ValLabel.TextSize = 13
+    ValLabel.TextXAlignment = Enum.TextXAlignment.Right
+    ValLabel.Parent = card
 
-local function MakeResizable(frame)
-    local ResizeBtn = Instance.new("TextButton")
-    ResizeBtn.Size = UDim2.new(0, 15, 0, 15)
-    ResizeBtn.Position = UDim2.new(1, -15, 1, -15)
-    ResizeBtn.BackgroundTransparency = 1
-    ResizeBtn.Text = "≡"
-    ResizeBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
-    ResizeBtn.TextSize = 12
-    ResizeBtn.Parent = frame
+    local Track = Instance.new("Frame")
+    Track.Size = UDim2.new(0, 370, 0, 4)
+    Track.Position = UDim2.new(0, 15, 0, 56)
+    Track.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    Track.Parent = card
 
-    local resizing, resizeStart, startSize
-    ResizeBtn.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            resizing = true
-            resizeStart = input.Position
-            startSize = frame.Size
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - resizeStart
-            local newX = math.max(400, startSize.X.Offset + delta.X)
-            local newY = math.max(250, startSize.Y.Offset + delta.Y)
-            frame.Size = UDim2.new(0, newX, 0, newY)
-        end
+    local Fill = Instance.new("Frame")
+    Fill.Size = UDim2.new((defaultVal - min)/(max - min), 0, 1, 0)
+    Fill.BackgroundColor3 = Color3.fromRGB(120, 80, 255)
+    Fill.Parent = Track
+
+    local Knob = Instance.new("TextButton")
+    Knob.Size = UDim2.new(0, 12, 0, 12)
+    Knob.Position = UDim2.new((defaultVal - min)/(max - min), -6, 0.5, -6)
+    Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Knob.Text = ""
+    Knob.Parent = Track
+
+    local sliding = false
+    Knob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliding = true end
     end)
     UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            resizing = false
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliding = false end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local rel = math.clamp((input.Position.X - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
+            Fill.Size = UDim2.new(rel, 0, 1, 0)
+            Knob.Position = UDim2.new(rel, -6, 0.5, -6)
+            local val = math.floor(min + (max - min) * rel)
+            ValLabel.Text = tostring(val)
+            callback(val)
         end
     end)
 end
--- Nuu7 Hub - Desenvolvido por LiamX (Parte 3)
+
+local function AddColorPicker(card, defaultColor, callback)
+    local PickerBtn = Instance.new("TextButton")
+    PickerBtn.Size = UDim2.new(0, 36, 0, 24)
+    PickerBtn.Position = UDim2.new(1, -51, 0.5, -12)
+    PickerBtn.BackgroundColor3 = defaultColor
+    PickerBtn.Text = ""
+    PickerBtn.Parent = card
+    Instance.new("UICorner", PickerBtn).CornerRadius = UDim.new(0, 6)
+
+    PickerBtn.MouseButton1Click:Connect(function()
+        local colors = {Color3.fromRGB(0,255,255), Color3.fromRGB(0,255,0), Color3.fromRGB(255,0,0), Color3.fromRGB(255,255,0)}
+        local nextColor = colors[math.random(#colors)]
+        PickerBtn.BackgroundColor3 = nextColor
+        callback(nextColor)
+    end)
+end
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 4)
 local function PopulateUI()
-    local function CreateToggle(name, parent, position, callback)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0, 18, 0, 18)
-        btn.Position = position
-        btn.BackgroundColor3 = Color3.fromRGB(63, 63, 66)
-        btn.Text = ""
-        btn.Parent = parent
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 4)
-        corner.Parent = btn
-
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(0, 150, 0, 20)
-        label.Position = UDim2.new(1, 10, 0, -2)
-        label.BackgroundTransparency = 1
-        label.Text = name
-        label.TextColor3 = Color3.fromRGB(220, 220, 225)
-        label.Font = Enum.Font.SourceSans
-        label.TextSize = 16
-        label.TextXAlignment = Enum.TextXAlignment.Left
-        label.Parent = btn
-
-        local active = false
-        btn.MouseButton1Click:Connect(function()
-            active = not active
-            btn.BackgroundColor3 = active and Color3.fromRGB(10, 132, 255) or Color3.fromRGB(63, 63, 66)
-            btn.Text = active and "✓" or ""
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            callback(active)
-        end)
-    end
-
-    local function CreateSlider(name, min, max, parent, position, callback)
-        local title = Instance.new("TextLabel")
-        title.Size = UDim2.new(0, 200, 0, 20)
-        title.Position = position
-        title.BackgroundTransparency = 1
-        title.Text = name .. ": " .. min
-        title.TextColor3 = Color3.fromRGB(200, 200, 205)
-        title.Font = Enum.Font.SourceSans
-        title.TextSize = 14
-        title.TextXAlignment = Enum.TextXAlignment.Left
-        title.Parent = parent
-
-        local bg = Instance.new("Frame")
-        bg.Size = UDim2.new(0, 200, 0, 6)
-        bg.Position = position + UDim2.new(0, 0, 0, 22)
-        bg.BackgroundColor3 = Color3.fromRGB(44, 44, 46)
-        bg.Parent = parent
-
-        local fill = Instance.new("Frame")
-        fill.Size = UDim2.new(0, 0, 1, 0)
-        fill.BackgroundColor3 = Color3.fromRGB(10, 132, 255)
-        fill.Parent = bg
-
-        local knob = Instance.new("TextButton")
-        knob.Size = UDim2.new(0, 14, 0, 14)
-        knob.Position = UDim2.new(0, -7, 0.5, -7)
-        knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        knob.Text = ""
-        knob.Parent = bg
-        local kCorner = Instance.new("UICorner")
-        kCorner.CornerRadius = UDim.new(1, 0)
-        kCorner.Parent = knob
-
-        local sliding = false
-        knob.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliding = true end
-        end)
-        UserInputService.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then sliding = false end
-        end)
-
-        UserInputService.InputChanged:Connect(function(input)
-            if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                local relativeX = math.clamp((input.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
-                fill.Size = UDim2.new(relativeX, 0, 1, 0)
-                knob.Position = UDim2.new(relativeX, -7, 0.5, -7)
-                local value = math.floor(min + (max - min) * relativeX)
-                title.Text = name .. ": " .. value
-                callback(value)
-            end
-        end)
-    end
-
-    -- Ganchos de ativação conectados às configurações globais
-    CreateToggle("ESP Lines", ContentPanel, UDim2.new(0, 20, 0, 20), function(v) _G.Nuu7Settings.ESP.Lines = v end)
-    CreateToggle("ESP Names", ContentPanel, UDim2.new(0, 20, 0, 50), function(v) _G.Nuu7Settings.ESP.Names = v end)
-    CreateToggle("ESP Distance", ContentPanel, UDim2.new(0, 20, 0, 80), function(v) _G.Nuu7Settings.ESP.Distance = v end)
+    local Settings = _G.Nuu7Settings
     
-    CreateToggle("Ativar Hitbox Extender", ContentPanel, UDim2.new(0, 20, 0, 120), function(v) _G.Nuu7Settings.Hitbox.Enabled = v end)
-    CreateSlider("Tamanho do Hitbox", 1, 30, ContentPanel, UDim2.new(0, 20, 0, 150), function(v) _G.Nuu7Settings.Hitbox.Size = v end)
+    -- --- ABA: TOOLS (Imagen 2) ---
+    local cardServer = CreateCard("Busca servidor con ~27 jugadores", "Procura una instancia más vacia automaticamente", TabPages["Tools"])
+    local cardCopy = CreateCard("Copiar Link del Servidor", "Copia el link al portapapeles", TabPages["Tools"])
+    cardCopy.MouseButton1Down:Connect(function() setclipboard("https://roblox.com" .. game.PlaceId .. "?server=" .. game.JobId) end)
 
-    CreateToggle("Modificar Velocidade", ContentPanel, UDim2.new(0, 240, 0, 20), function(v) _G.Nuu7Settings.Movement.Enabled = v end)
-    CreateSlider("Velocidade (WalkSpeed)", 1, 50, ContentPanel, UDim2.new(0, 240, 0, 50), function(v) _G.Nuu7Settings.Movement.WalkSpeed = v end)
+    local secConfig = Instance.new("TextLabel")
+    secConfig.Size = UDim2.new(0, 380, 0, 25); secConfig.Text = "⚙ Configuración de UI"; secConfig.TextColor3 = Color3.fromRGB(120, 80, 255); secConfig.Font = Enum.Font.SourceSansBold; secConfig.TextSize = 13; secConfig.TextXAlignment = Enum.TextXAlignment.Left; secConfig.BackgroundTransparency = 1; secConfig.Parent = TabPages["Tools"]
 
-    CreateToggle("Silent Aim", ContentPanel, UDim2.new(0, 240, 0, 100), function(v) _G.Nuu7Settings.SilentAim.Enabled = v end)
-    CreateToggle("Aimbot Legítimo", ContentPanel, UDim2.new(0, 240, 0, 130), function(v) _G.Nuu7Settings.Aimbot.Enabled = v end)
-    CreateSlider("Tamanho do FOV", 10, 300, ContentPanel, UDim2.new(0, 240, 0, 160), function(v) _G.Nuu7Settings.Aimbot.FOV = v end)
-    CreateToggle("Auto Shoot", ContentPanel, UDim2.new(0, 240, 0, 210), function(v) _G.Nuu7Settings.AutoShoot = v end)
+    local cardColor = CreateCard("Color UI", "Cambia el color de toda la interfaz", TabPages["Tools"])
+    AddColorPicker(cardColor, Settings.UI_Color, function(c) Settings.UI_Color = c Title.TextColor3 = c end)
+    local cardScale = CreateCard("Tamaño UI", "50% a 120% del tamaño base", TabPages["Tools"])
+    AddSlider(cardScale, 50, 120, Settings.UI_Size, function(v) Settings.UI_Size = v MainFrame.Size = UDim2.new(0, 580 * (v/100), 0, 360 * (v/100)) end)
+
+    local secOjo = Instance.new("TextLabel")
+    secOjo.Size = UDim2.new(0, 380, 0, 25); secOjo.Text = "👁 Ícono Flutuante (Ojo)"; secOjo.TextColor3 = Color3.fromRGB(120, 80, 255); secOjo.Font = Enum.Font.SourceSansBold; secOjo.TextSize = 13; secOjo.TextXAlignment = Enum.TextXAlignment.Left; secOjo.BackgroundTransparency = 1; secOjo.Parent = TabPages["Tools"]
+
+    local cardFix = CreateCard("Fijar icono iDepHub", "El icono no se podrá mover", TabPages["Tools"])
+    AddToggle(cardFix, Settings.IconFixed, function(v) Settings.IconFixed = v end)
+    local cardHide = CreateCard("Ocultar icono iDepHub", "Transparente pero funcional", TabPages["Tools"])
+    AddToggle(cardHide, Settings.IconHidden, function(v) FloatingButton.ImageTransparency = v and 0.95 or 0 end)
+
+    -- --- ABA: SHADER (Imagen 3) ---
+    local secTemas = Instance.new("TextLabel")
+    secTemas.Size = UDim2.new(0, 380, 0, 25); secTemas.Text = "🔮 Temas"; secTemas.TextColor3 = Color3.fromRGB(120, 80, 255); secTemas.Font = Enum.Font.SourceSansBold; secTemas.TextSize = 13; secTemas.TextXAlignment = Enum.TextXAlignment.Left; secTemas.BackgroundTransparency = 1; secTemas.Parent = TabPages["Shader"]
+
+    local cardHora = CreateCard("Hora del juego", "Cambia la hora del juego a tu preferencia", TabPages["Shader"])
+    AddSlider(cardHora, 1, 24, Settings.Hora_Juego, function(v) Settings.Hora_Juego = v Lighting.TimeOfDay = tostring(v) .. ":00:00" end)
+    CreateCard("Tokyowami", "Atardecer cálido con neblina", TabPages["Shader"])
+    CreateCard("Night", "Noche estrellada con neones", TabPages["Shader"])
+    CreateCard("Pink", "Estilo synthwave rosa y morado", TabPages["Shader"])
+    CreateCard("Reset", "Restaurar valores predeterminados", TabPages["Shader"])
+
+    -- --- ABA: ESP (Imagen 4) ---
+    local secParedes = Instance.new("TextLabel")
+    secParedes.Size = UDim2.new(0, 380, 0, 25); secParedes.Text = "👁 Visión a través de paredes"; secParedes.TextColor3 = Color3.fromRGB(120, 80, 255); secParedes.Font = Enum.Font.SourceSansBold; secParedes.TextSize = 13; secParedes.TextXAlignment = Enum.TextXAlignment.Left; secParedes.BackgroundTransparency = 1; secParedes.Parent = TabPages["ESP"]
+
+    local cardEspAct = CreateCard("ESP Activado", "Ver enemigos a traves de las paredes", TabPages["ESP"])
+    AddToggle(cardEspAct, Settings.ESP_Activated, function(v) Settings.ESP_Activated = v end)
+    local cardAllyEsp = CreateCard("Ally ESP", "Ver aliados a traves de las paredes", TabPages["ESP"])
+    AddToggle(cardAllyEsp, Settings.Ally_ESP, function(v) Settings.Ally_ESP = v end)
+    local cardColOut = CreateCard("Color Outline", "Color del contorno del ESP", TabPages["ESP"])
+    AddColorPicker(cardColOut, Settings.Color_Outline, function(c) Settings.Color_Outline = c end)
+    local cardColAlly = CreateCard("Color Ally Outline", "Color del contorno de aliados", TabPages["ESP"])
+    AddColorPicker(cardColAlly, Settings.Color_Ally_Outline, function(c) Settings.Color_Ally_Outline = c end)
+
+    -- --- ABA: RENYSHOT (Imagens 5 e 6) ---
+    local secDisparo = Instance.new("TextLabel")
+    secDisparo.Size = UDim2.new(0, 380, 0, 25); secDisparo.Text = "⚡ Modo de Disparo"; secDisparo.TextColor3 = Color3.fromRGB(120, 80, 255); secDisparo.Font = Enum.Font.SourceSansBold; secDisparo.TextSize = 13; secDisparo.TextXAlignment = Enum.TextXAlignment.Left; secDisparo.BackgroundTransparency = 1; secDisparo.Parent = TabPages["RenyShot"]
+
+    local cardAutoShot = CreateCard("AutoShot", "Dispara automaticamente al detectar", TabPages["RenyShot"])
+    AddToggle(cardAutoShot, Settings.AutoShot, function(v) Settings.AutoShot = v end)
+    CreateCard("ClickShot [ 🔒 Locked ]", "Dispara al tocar la pantalla (Premium)", TabPages["RenyShot"])
+
+    local secConfigDet = Instance.new("TextLabel")
+    secConfigDet.Size = UDim2.new(0, 380, 0, 25); secConfigDet.Text = "⚙ Configuración"; secConfigDet.TextColor3 = Color3.fromRGB(120, 80, 255); secConfigDet.Font = Enum.Font.SourceSansBold; secConfigDet.TextSize = 13; secConfigDet.TextXAlignment = Enum.TextXAlignment.Left; secConfigDet.BackgroundTransparency = 1; secConfigDet.Parent = TabPages["RenyShot"]
+
+    local cardPunto = CreateCard("Punto de Detección", "Cantidad de puntos que se crean por parte del cuerpo", TabPages["RenyShot"])
+    AddSlider(cardPunto, 1, 50, Settings.Punto_Deteccion, function(v) Settings.Punto_Deteccion = v end)
+
+    local secFov = Instance.new("TextLabel")
+    secFov.Size = UDim2.new(0, 380, 0, 25); secFov.Text = "🎯 FOV"; secFov.TextColor3 = Color3.fromRGB(120, 80, 255); secFov.Font = Enum.Font.SourceSansBold; secFov.TextSize = 13; secFov.TextXAlignment = Enum.TextXAlignment.Left; secFov.BackgroundTransparency = 1; secFov.Parent = TabPages["RenyShot"]
+
+    local cardActFov = CreateCard("Activar FOV", "Solo detecta enemigos dentro del circulo de FOV", TabPages["RenyShot"])
+    AddToggle(cardActFov, Settings.Activar_FOV, function(v) Settings.Activar_FOV = v end)
+    local cardTamFov = CreateCard("Tamaño FOV", "Modifica el radio del campo de visión", TabPages["RenyShot"])
+    AddSlider(cardTamFov, 10, 500, Settings.Tamano_FOV, function(v) Settings.Tamano_FOV = v end)
+
+    CreateCard("Información del Hub", "Bienvenido a Nuu7 Hub. Todo configurado.", TabPages["Info"])
 end
--- Nuu7 Hub - Desenvolvido por LiamX (Parte 4)
-local function IsEnemy(player)
-    if not _G.Nuu7Settings.ESP.TeamCheck then return true end
-    if player == LocalPlayer then return false end
-    if player.Team ~= LocalPlayer.Team then return true end
-    if player:FindFirstChild("Backpack") and (player.Backpack:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Gun")) then return true end
-    if player.Character and (player.Character:FindFirstChild("Knife") or player.Character:FindFirstChild("Gun")) then return true end
-    return false
-end
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 5)
+-- Inicializar los elementos gráficos de las pestañas
+PopulateUI()
 
-RunService.RenderStepped:Connect(function()
-    if not _G.Nuu7Settings.Active then return end
-    
-    if _G.Nuu7Settings.Movement.Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = _G.Nuu7Settings.Movement.WalkSpeed
-    end
-
-    for _, p in pairs(Players:GetPlayers()) do
-        if IsEnemy(p) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = p.Character.HumanoidRootPart
-            if _G.Nuu7Settings.Hitbox.Enabled then
-                hrp.Size = Vector3.new(_G.Nuu7Settings.Hitbox.Size, _G.Nuu7Settings.Hitbox.Size, _G.Nuu7Settings.Hitbox.Size)
-                hrp.Transparency = 1 
-                hrp.CanCollide = false
-            else
-                hrp.Size = Vector3.new(2, 2, 1)
-            end
-        end
-    end
-end)
-
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Color = Color3.fromRGB(255, 59, 48)
-FOVCircle.Thickness = 1.5
-FOVCircle.Filled = false
-FOVCircle.Transparency = 0.8
-
-RunService.RenderStepped:Connect(function()
-    if _G.Nuu7Settings.Active and _G.Nuu7Settings.Aimbot.Enabled then
-        FOVCircle.Position = UserInputService:GetMouseLocation()
-        FOVCircle.Radius = _G.Nuu7Settings.Aimbot.FOV
-        FOVCircle.Visible = true
-    else
-        FOVCircle.Visible = false
-    end
-end)
-
-local function GetClosestPlayerInFOV()
-    local closestPlayer = nil
-    local shortestDistance = math.huge
-    local mousePos = UserInputService:GetMouseLocation()
-
-    for _, player in pairs(Players:GetPlayers()) do
-        if IsEnemy(player) and player.Character and player.Character:FindFirstChild(_G.Nuu7Settings.SilentAim.TargetPart) then
-            local targetPart = player.Character[_G.Nuu7Settings.SilentAim.TargetPart]
-            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-            
-            if onScreen then
-                local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                if distance < shortestDistance and distance <= _G.Nuu7Settings.Aimbot.FOV then
-                    closestPlayer = player
-                    shortestDistance = distance
-                end
-            end
-        end
-    end
-    return closestPlayer
-end
-
-RunService.RenderStepped:Connect(function()
-    if not _G.Nuu7Settings.Active then return end
-    
-    local target = GetClosestPlayerInFOV()
-    if target and target.Character and target.Character:FindFirstChild(_G.Nuu7Settings.SilentAim.TargetPart) then
-        local targetPos = target.Character[_G.Nuu7Settings.SilentAim.TargetPart].Position
-        
-        if _G.Nuu7Settings.Aimbot.Enabled then
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPos), _G.Nuu7Settings.Aimbot.Smoothness)
-        end
-        
-        if _G.Nuu7Settings.AutoShoot then
-            local ray = Ray.new(Camera.CFrame.Position, (targetPos - Camera.CFrame.Position).Unit * 500)
-            local hit, pos = Workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character})
-            if hit and hit:IsDescendantOf(target.Character) then
-                pcall(function() mouse1click() end)
-            end
-        end
-    end
-end)
-
-local OldNamecall
-OldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    
-    if _G.Nuu7Settings.Active and _G.Nuu7Settings.SilentAim.Enabled and tostring(method) == "FindPartOnRayWithIgnoreList" then
-        local target = GetClosestPlayerInFOV()
-        if target and target.Character and target.Character:FindFirstChild(_G.Nuu7Settings.SilentAim.TargetPart) then
-            local origin = args.Origin
-            local direction = (target.Character[_G.Nuu7Settings.SilentAim.TargetPart].Position - origin).Unit * 500
-            args = Ray.new(origin, direction)
-            return OldNamecall(self, unpack(args))
-        end
-    end
-    return OldNamecall(self, ...)
-end)
--- Nuu7 Hub - Desenvolvido por LiamX (Parte 5)
-KeySubmit.MouseButton1Click:Connect(function()
-    if KeyInput.Text == _G.Nuu7Settings.Key then
-        KeyWindow:Destroy()
-        _G.Nuu7Settings.Active = true
-        
-        BuildMainUI()
-        PopulateUI()
-        
-        MainWindow.Visible = true
-        MakeDraggable(MainWindow)
-        MakeResizable(MainWindow)
-        MakeDraggable(FloatingCircle)
-    else
-        KeyInput.Text = ""
-        KeyInput.PlaceholderText = "Chave Incorreta!"
-        TweenService:Create(KeyInput, TweenInfo.new(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, 3, true), {Position = KeyInput.Position + UDim2.new(0, 5, 0, 0)}):Play()
-    end
+-- Manejo de Apertura y Cierre
+FloatingButton.MouseButton1Click:Connect(function()
+    MainFrame.Visible = not MainFrame.Visible
 end)
 
 CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-    FOVCircle:Remove()
-    _G.Nuu7Settings.Active = false
+    MainFrame.Visible = false
 end)
 
-MinimizeBtn.MouseButton1Click:Connect(function()
-    MainWindow.Visible = false
-    FloatingCircle.Visible = true
-    FloatingCircle.Position = UDim2.new(0, MainWindow.Position.X.Offset + 20, 0, MainWindow.Position.Y.Offset + 20)
-end)
-
-FloatingCircle.MouseButton1Click:Connect(function()
-    FloatingCircle.Visible = false
-    MainWindow.Visible = true
-end)
+-- Mensaje de éxito en la consola del executor
+print("[𝙉𝙪𝙪7 𝙃𝙪𝙗]: Cargado con éxito y listo para usar.")

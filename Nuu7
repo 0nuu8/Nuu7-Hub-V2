@@ -1,21 +1,23 @@
--- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 1)
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 1 - Duels Edition)
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
 -- Configurações Globais / Estados da UI e Funções
 _G.Nuu7Settings = {
     Active = true,
     CurrentTab = "Info",
-    UI_Color = Color3.fromRGB(0, 162, 255),
+    UI_Color = Color3.fromRGB(120, 80, 255),
     UI_Size = 93,
     IconFixed = false,
     IconHidden = false,
-    -- Configs de las funciones
+    -- Estado de Funciones (Duels & Visuals)
     ESP_Activated = false,
     Ally_ESP = false,
     Color_Outline = Color3.fromRGB(0, 255, 255),
@@ -25,12 +27,27 @@ _G.Nuu7Settings = {
     Punto_Deteccion = 14,
     Activar_FOV = false,
     Tamano_FOV = 200,
-    Hora_Juego = 14
+    Hora_Juego = 14,
+    InstaKillAll = false
 }
 
 local Settings = _G.Nuu7Settings
 
--- Criação da ScreenGui Principal protegida para Executors
+-- Validación de Enemigos en Duels (One-Shot Roles Check)
+local function IsEnemy(player)
+    if player == LocalPlayer then return false end
+    if player.Team ~= LocalPlayer.Team then return true end
+    -- Escaneo de inventario/mochila en tiempo real para Sheriff vs Murder
+    if player:FindFirstChild("Backpack") and (player.Backpack:FindFirstChild("Knife") or player.Backpack:FindFirstChild("Gun")) then
+        return true
+    end
+    if player.Character and (player.Character:FindFirstChild("Knife") or player.Character:FindFirstChild("Gun")) then
+        return true
+    end
+    return false
+end
+
+-- Estructura Base Gui (Con forzado de orden de dibujo anti-caja negra)
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Nuu7Hub_FinalUI"
 ScreenGui.ResetOnSpawn = false
@@ -41,7 +58,14 @@ if not ScreenGui.Parent then
     ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 end
 
--- 1. BOTÃO FLUTUANTE CUSTOMIZADO (IMAGEM 1)
+-- Limpieza preventiva
+for _, oldUi in pairs(CoreGui:GetChildren()) do
+    if oldUi.Name == "Nuu7Hub_FinalUI" and oldUi ~= ScreenGui then
+        oldUi:Destroy()
+    end
+end
+
+-- 1. BOTÓN FLUTUANTE CUSTOMIZADO (IMAGEM 1)
 local FloatingButton = Instance.new("ImageButton")
 FloatingButton.Name = "Nuu7_FloatingIcon"
 FloatingButton.Size = UDim2.new(0, 55, 0, 55)
@@ -52,9 +76,8 @@ FloatingButton.Image = "rbxassetid://84138760086392" -- Red de conexiones roja
 FloatingButton.ZIndex = 10
 FloatingButton.Parent = ScreenGui
 
-local IconCorner = Instance.new("UICorner")
+local IconCorner = Instance.new("UICorner", FloatingButton)
 IconCorner.CornerRadius = UDim.new(0, 12)
-IconCorner.Parent = FloatingButton
 
 -- Arrastrar el botón en Mobile
 local dragToggle, dragStart, startPos
@@ -74,7 +97,7 @@ UserInputService.InputChanged:Connect(function(input)
         FloatingButton.Position = UDim2.new(startPos.Width.Scale, startPos.Width.Offset + delta.X, startPos.Height.Scale, startPos.Height.Offset + delta.Y)
     end
 end)
--- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 2)
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 2 - Duels Edition)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 580, 0, 360)
@@ -82,17 +105,18 @@ MainFrame.Position = UDim2.new(0.5, -290, 0.5, -180)
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
 MainFrame.BorderSizePixel = 0
 MainFrame.Visible = false
-MainFrame.ClipsDescendants = true
+MainFrame.ClipsDescendants = false -- Evita el bug del recuadro negro vacío en Delta
+MainFrame.ZIndex = 2
 MainFrame.Parent = ScreenGui
 
-local MainCorner = Instance.new("UICorner")
+local MainCorner = Instance.new("UICorner", MainFrame)
 MainCorner.CornerRadius = UDim.new(0, 10)
-MainCorner.Parent = MainFrame
 
 local TopBar = Instance.new("Frame")
 TopBar.Size = UDim2.new(1, 0, 0, 45)
 TopBar.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 TopBar.BorderSizePixel = 0
+TopBar.ZIndex = 3
 TopBar.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
@@ -100,10 +124,11 @@ Title.Size = UDim2.new(0, 200, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "𝙉𝙪𝙪7 𝙃𝙪𝙗 - [ DMVS ]"
-Title.TextColor3 = Color3.fromRGB(120, 80, 255)
+Title.TextColor3 = Settings.UI_Color
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 20
 Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 4
 Title.Parent = TopBar
 
 local Subtitle = Instance.new("TextLabel")
@@ -114,7 +139,7 @@ Subtitle.Text = "By LiamX"
 Subtitle.TextColor3 = Color3.fromRGB(100, 100, 100)
 Subtitle.Font = Enum.Font.SourceSans
 Subtitle.TextSize = 11
-Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+Subtitle.ZIndex = 4
 Subtitle.Parent = TopBar
 
 local DeltaBadge = Instance.new("TextLabel")
@@ -125,6 +150,7 @@ DeltaBadge.Text = ">_ Delta"
 DeltaBadge.TextColor3 = Color3.fromRGB(160, 160, 200)
 DeltaBadge.Font = Enum.Font.SourceSans
 DeltaBadge.TextSize = 12
+DeltaBadge.ZIndex = 4
 DeltaBadge.Parent = TopBar
 Instance.new("UICorner", DeltaBadge).CornerRadius = UDim.new(0, 5)
 
@@ -132,10 +158,11 @@ local FPSBadge = Instance.new("TextLabel")
 FPSBadge.Size = UDim2.new(0, 70, 0, 22)
 FPSBadge.Position = UDim2.new(1, -130, 0.25, 0)
 FPSBadge.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
-FPSBadge.Text = "⚡ 27 FPS"
-FPSBadge.TextColor3 = Color3.fromRGB(230, 190, 110)
+FPSBadge.Text = "⚡ 59 FPS"
+FPSBadge.TextColor3 = Color3.fromRGB(120, 220, 120)
 FPSBadge.Font = Enum.Font.SourceSans
 FPSBadge.TextSize = 12
+FPSBadge.ZIndex = 4
 FPSBadge.Parent = TopBar
 Instance.new("UICorner", FPSBadge).CornerRadius = UDim.new(0, 5)
 
@@ -146,9 +173,10 @@ CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = "✕"
 CloseBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
 CloseBtn.TextSize = 16
+CloseBtn.ZIndex = 4
 CloseBtn.Parent = TopBar
 
--- Arrastrar Ventana
+-- Arrastrar Ventana Principal
 local mainDragToggle, mainDragStart, mainStartPos
 TopBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -172,15 +200,17 @@ LeftNav.Size = UDim2.new(0, 150, 1, -45)
 LeftNav.Position = UDim2.new(0, 0, 0, 45)
 LeftNav.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
 LeftNav.BorderSizePixel = 0
+LeftNav.ZIndex = 3
 LeftNav.Parent = MainFrame
 
 local ContentContainer = Instance.new("Frame")
 ContentContainer.Size = UDim2.new(1, -150, 1, -45)
 ContentContainer.Position = UDim2.new(0, 150, 0, 45)
 ContentContainer.BackgroundTransparency = 1
+ContentContainer.ZIndex = 3
 ContentContainer.Parent = MainFrame
 
-local Tabs = {"Info", "RenyShot", "Movil", "ESP", "Shader", "Tools"}
+local Tabs = {"Info", "RenyShot", "ESP", "Shader", "Tools"}
 local TabButtons = {}
 local TabPages = {}
 
@@ -188,9 +218,10 @@ for i, tabName in ipairs(Tabs) do
     local Page = Instance.new("ScrollingFrame")
     Page.Size = UDim2.new(1, 0, 1, 0)
     Page.BackgroundTransparency = 1
-    Page.CanvasSize = UDim2.new(0, 0, 0, 520)
+    Page.CanvasSize = UDim2.new(0, 0, 0, 550)
     Page.ScrollBarThickness = 2
     Page.Visible = (tabName == "Info")
+    Page.ZIndex = 4
     Page.Parent = ContentContainer
     TabPages[tabName] = Page
 
@@ -200,9 +231,8 @@ for i, tabName in ipairs(Tabs) do
     Layout.SortOrder = Enum.SortOrder.LayoutOrder
     Layout.Parent = Page
 
-    local Padding = Instance.new("UIPadding")
+    local Padding = Instance.new("UIPadding", Page)
     Padding.PaddingTop = UDim.new(0, 15)
-    Padding.Parent = Page
 
     local TabBtn = Instance.new("TextButton")
     TabBtn.Size = UDim2.new(0, 130, 0, 36)
@@ -213,6 +243,7 @@ for i, tabName in ipairs(Tabs) do
     TabBtn.Font = Enum.Font.SourceSans
     TabBtn.TextSize = 14
     TabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    TabBtn.ZIndex = 4
     TabBtn.Parent = LeftNav
     Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 6)
 
@@ -221,6 +252,7 @@ for i, tabName in ipairs(Tabs) do
     Indicator.Position = UDim2.new(0, 5, 0.5, -10)
     Indicator.BackgroundColor3 = Color3.fromRGB(120, 80, 255)
     Indicator.Visible = (tabName == "Info")
+    Indicator.ZIndex = 5
     Indicator.Parent = TabBtn
 
     TabBtn.MouseButton1Click:Connect(function()
@@ -237,12 +269,13 @@ for i, tabName in ipairs(Tabs) do
     TabButtons[tabName] = TabBtn
     TabBtn.Name = "TabBtn_" .. tabName
 end
--- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 3)
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 3 - Duels Edition)
 local function CreateCard(title, description, parent)
     local Card = Instance.new("Frame")
     Card.Size = UDim2.new(0, 400, 0, 65)
     Card.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
     Card.BorderSizePixel = 0
+    Card.ZIndex = 5
     Card.Parent = parent
     Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 8)
 
@@ -255,6 +288,7 @@ local function CreateCard(title, description, parent)
     TxtTitle.Font = Enum.Font.SourceSansBold
     TxtTitle.TextSize = 14
     TxtTitle.TextXAlignment = Enum.TextXAlignment.Left
+    TxtTitle.ZIndex = 6
     TxtTitle.Parent = Card
 
     local TxtDesc = Instance.new("TextLabel")
@@ -266,6 +300,7 @@ local function CreateCard(title, description, parent)
     TxtDesc.Font = Enum.Font.SourceSans
     TxtDesc.TextSize = 12
     TxtDesc.TextXAlignment = Enum.TextXAlignment.Left
+    TxtDesc.ZIndex = 6
     TxtDesc.Parent = Card
     return Card
 end
@@ -276,6 +311,7 @@ local function AddToggle(card, defaultState, callback)
     Toggle.Position = UDim2.new(1, -57, 0.5, -11)
     Toggle.BackgroundColor3 = defaultState and Color3.fromRGB(120, 80, 255) or Color3.fromRGB(45, 45, 50)
     Toggle.Text = ""
+    Toggle.ZIndex = 6
     Toggle.Parent = card
     Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
 
@@ -283,6 +319,7 @@ local function AddToggle(card, defaultState, callback)
     Knob.Size = UDim2.new(0, 16, 0, 16)
     Knob.Position = defaultState and UDim2.new(1, -20, 0.5, -8) or UDim2.new(0, 4, 0.5, -8)
     Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Knob.ZIndex = 7
     Knob.Parent = Toggle
     Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
 
@@ -305,18 +342,20 @@ local function AddSlider(card, min, max, defaultVal, callback)
     ValLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     ValLabel.Font = Enum.Font.SourceSans
     ValLabel.TextSize = 13
-    ValLabel.TextXAlignment = Enum.TextXAlignment.Right
+    ValLabel.ZIndex = 6
     ValLabel.Parent = card
 
     local Track = Instance.new("Frame")
     Track.Size = UDim2.new(0, 370, 0, 4)
     Track.Position = UDim2.new(0, 15, 0, 56)
     Track.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    Track.ZIndex = 6
     Track.Parent = card
 
     local Fill = Instance.new("Frame")
     Fill.Size = UDim2.new((defaultVal - min)/(max - min), 0, 1, 0)
     Fill.BackgroundColor3 = Color3.fromRGB(120, 80, 255)
+    Fill.ZIndex = 7
     Fill.Parent = Track
 
     local Knob = Instance.new("TextButton")
@@ -324,6 +363,7 @@ local function AddSlider(card, min, max, defaultVal, callback)
     Knob.Position = UDim2.new((defaultVal - min)/(max - min), -6, 0.5, -6)
     Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Knob.Text = ""
+    Knob.ZIndex = 8
     Knob.Parent = Track
 
     local sliding = false
@@ -351,6 +391,7 @@ local function AddColorPicker(card, defaultColor, callback)
     PickerBtn.Position = UDim2.new(1, -51, 0.5, -12)
     PickerBtn.BackgroundColor3 = defaultColor
     PickerBtn.Text = ""
+    PickerBtn.ZIndex = 6
     PickerBtn.Parent = card
     Instance.new("UICorner", PickerBtn).CornerRadius = UDim.new(0, 6)
 
@@ -361,45 +402,39 @@ local function AddColorPicker(card, defaultColor, callback)
         callback(nextColor)
     end)
 end
--- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 4)
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 4 - Duels Edition)
 local function PopulateUI()
     local Settings = _G.Nuu7Settings
     
-    -- --- ABA: TOOLS (Imagen 2) ---
-    local cardServer = CreateCard("Busca servidor con ~27 jugadores", "Procura una instancia más vacia automaticamente", TabPages["Tools"])
-    local cardCopy = CreateCard("Copiar Link del Servidor", "Copia el link al portapapeles", TabPages["Tools"])
-    cardCopy.MouseButton1Down:Connect(function() setclipboard("https://roblox.com" .. game.PlaceId .. "?server=" .. game.JobId) end)
+    -- --- ABA: RENYSHOT ---
+    local secDisparo = Instance.new("TextLabel")
+    secDisparo.Size = UDim2.new(0, 380, 0, 25); secDisparo.Text = "⚡ Modo de Disparo"; secDisparo.TextColor3 = Color3.fromRGB(120, 80, 255); secDisparo.Font = Enum.Font.SourceSansBold; secDisparo.TextSize = 13; secDisparo.TextXAlignment = Enum.TextXAlignment.Left; secDisparo.BackgroundTransparency = 1; secDisparo.ZIndex = 5; secDisparo.Parent = TabPages["RenyShot"]
 
-    local secConfig = Instance.new("TextLabel")
-    secConfig.Size = UDim2.new(0, 380, 0, 25); secConfig.Text = "⚙ Configuración de UI"; secConfig.TextColor3 = Color3.fromRGB(120, 80, 255); secConfig.Font = Enum.Font.SourceSansBold; secConfig.TextSize = 13; secConfig.TextXAlignment = Enum.TextXAlignment.Left; secConfig.BackgroundTransparency = 1; secConfig.Parent = TabPages["Tools"]
+    local cardInsta = CreateCard("Insta Kill All", "Elimina a todos los enemigos de forma automatica", TabPages["RenyShot"])
+    AddToggle(cardInsta, Settings.InstaKillAll, function(v) Settings.InstaKillAll = v end)
 
-    local cardColor = CreateCard("Color UI", "Cambia el color de toda la interfaz", TabPages["Tools"])
-    AddColorPicker(cardColor, Settings.UI_Color, function(c) Settings.UI_Color = c Title.TextColor3 = c end)
-    local cardScale = CreateCard("Tamaño UI", "50% a 120% del tamaño base", TabPages["Tools"])
-    AddSlider(cardScale, 50, 120, Settings.UI_Size, function(v) Settings.UI_Size = v MainFrame.Size = UDim2.new(0, 580 * (v/100), 0, 360 * (v/100)) end)
+    local cardAutoShot = CreateCard("AutoShot", "Dispara automaticamente al detectar", TabPages["RenyShot"])
+    AddToggle(cardAutoShot, Settings.AutoShot, function(v) Settings.AutoShot = v end)
 
-    local secOjo = Instance.new("TextLabel")
-    secOjo.Size = UDim2.new(0, 380, 0, 25); secOjo.Text = "👁 Ícono Flutuante (Ojo)"; secOjo.TextColor3 = Color3.fromRGB(120, 80, 255); secOjo.Font = Enum.Font.SourceSansBold; secOjo.TextSize = 13; secOjo.TextXAlignment = Enum.TextXAlignment.Left; secOjo.BackgroundTransparency = 1; secOjo.Parent = TabPages["Tools"]
+    CreateCard("ClickShot [ 🔒 Locked ]", "Dispara al tocar la pantalla (Premium)", TabPages["RenyShot"])
 
-    local cardFix = CreateCard("Fijar icono iDepHub", "El icono no se podrá mover", TabPages["Tools"])
-    AddToggle(cardFix, Settings.IconFixed, function(v) Settings.IconFixed = v end)
-    local cardHide = CreateCard("Ocultar icono iDepHub", "Transparente pero funcional", TabPages["Tools"])
-    AddToggle(cardHide, Settings.IconHidden, function(v) FloatingButton.ImageTransparency = v and 0.95 or 0 end)
+    local secConfigDet = Instance.new("TextLabel")
+    secConfigDet.Size = UDim2.new(0, 380, 0, 25); secConfigDet.Text = "⚙ Configuración"; secConfigDet.TextColor3 = Color3.fromRGB(120, 80, 255); secConfigDet.Font = Enum.Font.SourceSansBold; secConfigDet.TextSize = 13; secConfigDet.TextXAlignment = Enum.TextXAlignment.Left; secConfigDet.BackgroundTransparency = 1; secConfigDet.ZIndex = 5; secConfigDet.Parent = TabPages["RenyShot"]
 
-    -- --- ABA: SHADER (Imagen 3) ---
-    local secTemas = Instance.new("TextLabel")
-    secTemas.Size = UDim2.new(0, 380, 0, 25); secTemas.Text = "🔮 Temas"; secTemas.TextColor3 = Color3.fromRGB(120, 80, 255); secTemas.Font = Enum.Font.SourceSansBold; secTemas.TextSize = 13; secTemas.TextXAlignment = Enum.TextXAlignment.Left; secTemas.BackgroundTransparency = 1; secTemas.Parent = TabPages["Shader"]
+    local cardPunto = CreateCard("Punto de Detección", "Cantidad de puntos que se crean por parte del cuerpo", TabPages["RenyShot"])
+    AddSlider(cardPunto, 1, 50, Settings.Punto_Deteccion, function(v) Settings.Punto_Deteccion = v end)
 
-    local cardHora = CreateCard("Hora del juego", "Cambia la hora del juego a tu preferencia", TabPages["Shader"])
-    AddSlider(cardHora, 1, 24, Settings.Hora_Juego, function(v) Settings.Hora_Juego = v Lighting.TimeOfDay = tostring(v) .. ":00:00" end)
-    CreateCard("Tokyowami", "Atardecer cálido con neblina", TabPages["Shader"])
-    CreateCard("Night", "Noche estrellada con neones", TabPages["Shader"])
-    CreateCard("Pink", "Estilo synthwave rosa y morado", TabPages["Shader"])
-    CreateCard("Reset", "Restaurar valores predeterminados", TabPages["Shader"])
+    local secFov = Instance.new("TextLabel")
+    secFov.Size = UDim2.new(0, 380, 0, 25); secFov.Text = "🎯 FOV"; secFov.TextColor3 = Color3.fromRGB(120, 80, 255); secFov.Font = Enum.Font.SourceSansBold; secFov.TextSize = 13; secFov.TextXAlignment = Enum.TextXAlignment.Left; secFov.BackgroundTransparency = 1; secFov.ZIndex = 5; secFov.Parent = TabPages["RenyShot"]
 
-    -- --- ABA: ESP (Imagen 4) ---
+    local cardActFov = CreateCard("Activar FOV", "Solo detecta enemigos dentro del circulo de FOV", TabPages["RenyShot"])
+    AddToggle(cardActFov, Settings.Activar_FOV, function(v) Settings.Activar_FOV = v end)
+    local cardTamFov = CreateCard("Tamaño FOV", "Modifica el radio del campo de visión", TabPages["RenyShot"])
+    AddSlider(cardTamFov, 10, 500, Settings.Tamano_FOV, function(v) Settings.Tamano_FOV = v end)
+
+    -- --- ABA: ESP ---
     local secParedes = Instance.new("TextLabel")
-    secParedes.Size = UDim2.new(0, 380, 0, 25); secParedes.Text = "👁 Visión a través de paredes"; secParedes.TextColor3 = Color3.fromRGB(120, 80, 255); secParedes.Font = Enum.Font.SourceSansBold; secParedes.TextSize = 13; secParedes.TextXAlignment = Enum.TextXAlignment.Left; secParedes.BackgroundTransparency = 1; secParedes.Parent = TabPages["ESP"]
+    secParedes.Size = UDim2.new(0, 380, 0, 25); secParedes.Text = "👁 Visión a través de paredes"; secParedes.TextColor3 = Color3.fromRGB(120, 80, 255); secParedes.Font = Enum.Font.SourceSansBold; secParedes.TextSize = 13; secParedes.TextXAlignment = Enum.TextXAlignment.Left; secParedes.BackgroundTransparency = 1; secParedes.ZIndex = 5; secParedes.Parent = TabPages["ESP"]
 
     local cardEspAct = CreateCard("ESP Activado", "Ver enemigos a traves de las paredes", TabPages["ESP"])
     AddToggle(cardEspAct, Settings.ESP_Activated, function(v) Settings.ESP_Activated = v end)
@@ -407,38 +442,24 @@ local function PopulateUI()
     AddToggle(cardAllyEsp, Settings.Ally_ESP, function(v) Settings.Ally_ESP = v end)
     local cardColOut = CreateCard("Color Outline", "Color del contorno del ESP", TabPages["ESP"])
     AddColorPicker(cardColOut, Settings.Color_Outline, function(c) Settings.Color_Outline = c end)
-    local cardColAlly = CreateCard("Color Ally Outline", "Color del contorno de aliados", TabPages["ESP"])
-    AddColorPicker(cardColAlly, Settings.Color_Ally_Outline, function(c) Settings.Color_Ally_Outline = c end)
 
-    -- --- ABA: RENYSHOT (Imagens 5 e 6) ---
-    local secDisparo = Instance.new("TextLabel")
-    secDisparo.Size = UDim2.new(0, 380, 0, 25); secDisparo.Text = "⚡ Modo de Disparo"; secDisparo.TextColor3 = Color3.fromRGB(120, 80, 255); secDisparo.Font = Enum.Font.SourceSansBold; secDisparo.TextSize = 13; secDisparo.TextXAlignment = Enum.TextXAlignment.Left; secDisparo.BackgroundTransparency = 1; secDisparo.Parent = TabPages["RenyShot"]
+    -- --- ABA: SHADER ---
+    local cardHora = CreateCard("Hora del juego", "Cambia la hora del juego a tu preferencia", TabPages["Shader"])
+    AddSlider(cardHora, 1, 24, Settings.Hora_Juego, function(v) Settings.Hora_Juego = v Lighting.TimeOfDay = tostring(v) .. ":00:00" end)
 
-    local cardAutoShot = CreateCard("AutoShot", "Dispara automaticamente al detectar", TabPages["RenyShot"])
-    AddToggle(cardAutoShot, Settings.AutoShot, function(v) Settings.AutoShot = v end)
-    CreateCard("ClickShot [ 🔒 Locked ]", "Dispara al tocar la pantalla (Premium)", TabPages["RenyShot"])
+    -- --- ABA: TOOLS ---
+    local cardCopy = CreateCard("Copiar Link del Servidor", "Copia el link al portapapeles", TabPages["Tools"])
+    cardCopy.MouseButton1Down:Connect(function() setclipboard("https://roblox.com" .. game.PlaceId .. "?server=" .. game.JobId) end)
+    local cardScale = CreateCard("Tamaño UI", "50% a 120% del tamaño base", TabPages["Tools"])
+    AddSlider(cardScale, 50, 120, Settings.UI_Size, function(v) Settings.UI_Size = v MainFrame.Size = UDim2.new(0, 580 * (v/100), 0, 360 * (v/100)) end)
 
-    local secConfigDet = Instance.new("TextLabel")
-    secConfigDet.Size = UDim2.new(0, 380, 0, 25); secConfigDet.Text = "⚙ Configuración"; secConfigDet.TextColor3 = Color3.fromRGB(120, 80, 255); secConfigDet.Font = Enum.Font.SourceSansBold; secConfigDet.TextSize = 13; secConfigDet.TextXAlignment = Enum.TextXAlignment.Left; secConfigDet.BackgroundTransparency = 1; secConfigDet.Parent = TabPages["RenyShot"]
-
-    local cardPunto = CreateCard("Punto de Detección", "Cantidad de puntos que se crean por parte del cuerpo", TabPages["RenyShot"])
-    AddSlider(cardPunto, 1, 50, Settings.Punto_Deteccion, function(v) Settings.Punto_Deteccion = v end)
-
-    local secFov = Instance.new("TextLabel")
-    secFov.Size = UDim2.new(0, 380, 0, 25); secFov.Text = "🎯 FOV"; secFov.TextColor3 = Color3.fromRGB(120, 80, 255); secFov.Font = Enum.Font.SourceSansBold; secFov.TextSize = 13; secFov.TextXAlignment = Enum.TextXAlignment.Left; secFov.BackgroundTransparency = 1; secFov.Parent = TabPages["RenyShot"]
-
-    local cardActFov = CreateCard("Activar FOV", "Solo detecta enemigos dentro del circulo de FOV", TabPages["RenyShot"])
-    AddToggle(cardActFov, Settings.Activar_FOV, function(v) Settings.Activar_FOV = v end)
-    local cardTamFov = CreateCard("Tamaño FOV", "Modifica el radio del campo de visión", TabPages["RenyShot"])
-    AddSlider(cardTamFov, 10, 500, Settings.Tamano_FOV, function(v) Settings.Tamano_FOV = v end)
-
-    CreateCard("Información del Hub", "Bienvenido a Nuu7 Hub. Todo configurado.", TabPages["Info"])
+    -- --- ABA: INFO ---
+    CreateCard("Información del Hub", "Optimizado para Duels: Sheriff vs Murder.", TabPages["Info"])
 end
--- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 5)
--- Inicializar los elementos gráficos de las pestañas
+-- 𝙉𝙪𝙪7 𝙃𝙪𝙗 - Desarrollado por LiamX (Parte 5 - Duels Edition)
 PopulateUI()
 
--- Manejo de Apertura y Cierre
+-- Eventos del Botón Flotante e Interfaz
 FloatingButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
@@ -447,5 +468,27 @@ CloseBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
 end)
 
--- Mensaje de éxito en la consola del executor
-print("[𝙉𝙪𝙪7 𝙃𝙪𝙗]: Cargado con éxito y listo para usar.")
+-- Bucle de Lógica Indetectable para Insta Kill All en Duels
+RunService.RenderStepped:Connect(function()
+    if _G.Nuu7Settings.InstaKillAll then
+        for _, enemy in pairs(Players:GetPlayers()) do
+            if IsEnemy(enemy) and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") then
+                -- Validación de arma equipada localmente
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool") then
+                    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                    
+                    -- Simulación de evento de disparo nativo para evitar teletransportación física
+                    if tool:FindFirstChild("RemoteEvent") then
+                        tool.RemoteEvent:FireServer(enemy.Character.HumanoidRootPart.Position)
+                    elseif tool:FindFirstChild("Fire") then
+                        tool.Fire:FireServer(enemy.Character.HumanoidRootPart.Position)
+                    elseif tool:FindFirstChild("Shoot") then
+                        tool.Shoot:FireServer(enemy.Character.HumanoidRootPart.Position)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+print("[𝙉𝙪𝙪7 𝙃𝙪𝙗]: Todas las partes vinculadas y estables.")
